@@ -16,8 +16,9 @@ setup(
     namespace_packages=['cotidia'],
     include_package_data=True,
     install_requires=[
-        'django>=1.10.2',
-        'djangorestframework>=3.5.1'
+        'django>=1.10.6',
+        'djangorestframework>=3.6.2',
+        'channels>=1.0.3'
     ],
     classifiers=[
         'Framework :: Django',
