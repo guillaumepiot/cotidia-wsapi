@@ -1,84 +1,102 @@
-from channels.handler import AsgiRequest
+import json
 
 from django.urls import reverse, resolve
-from django.http import HttpRequest
 from django.core.handlers.wsgi import WSGIRequest
-from django.contrib.auth.models import AnonymousUser
-
 from django.utils.six.moves.urllib.parse import urlencode
+
+from rest_framework.authtoken.models import Token
 
 from io import BytesIO
 
 
 class RequestFactory(object):
-    def __init__(self, action, path, data={}, user=None):
+    def __init__(self, action, path, data={}, auth_token=None):
         self.action = action
         self.path = path
         self.encoded_data = urlencode(data)
-        self.user = user
+        self.auth_token = auth_token
 
     def build_request(self, environ):
         req = WSGIRequest(environ)
-        self.auth_request(req)
         return req
 
-    def auth_request(self, req):
-        if self.user:
-            req.user = self.user
-        else:
-            req.user = AnonymousUser()
-        return req
+    def get_base_environ(self):
+        environ = {
+            'PATH_INFO': self.path,
+        }
+        if self.auth_token:
+            environ["HTTP_AUTHORIZATION"] = 'Token %s' % self.auth_token
+        return environ
 
     def get(self):
-        environ = {
-            'REQUEST_METHOD': 'GET',
-            'PATH_INFO': self.path,
+        environ = self.get_base_environ()
+        environ.update({
+            'REQUEST_METHOD': "GET",
             'CONTENT_TYPE': 'application/x-www-form-urlencoded',
             'CONTENT_LENGTH': len(self.encoded_data),
             'wsgi.input': BytesIO(self.encoded_data.encode())
-            }
+            })
         return self.build_request(environ)
 
     def post(self):
-        environ = {
-            'REQUEST_METHOD': 'POST',
-            'PATH_INFO': self.path,
+        environ = self.get_base_environ()
+        environ.update({
+            'REQUEST_METHOD': "POST",
             'CONTENT_TYPE': 'application/x-www-form-urlencoded',
             'CONTENT_LENGTH': len(self.encoded_data),
             'wsgi.input': BytesIO(self.encoded_data.encode())
-            }
+            })
         return self.build_request(environ)
 
     def patch(self):
-        environ = {
-            'REQUEST_METHOD': 'PATCH',
-            'PATH_INFO': self.path,
+        environ = self.get_base_environ()
+        environ.update({
+            'REQUEST_METHOD': "PATCH",
             'CONTENT_TYPE': 'application/x-www-form-urlencoded',
             'CONTENT_LENGTH': len(self.encoded_data),
             'wsgi.input': BytesIO(self.encoded_data.encode())
-            }
+            })
+        return self.build_request(environ)
+
+    def delete(self):
+        environ = self.get_base_environ()
+        environ.update({
+            'REQUEST_METHOD': "DELETE",
+            'wsgi.input': BytesIO()
+            })
         return self.build_request(environ)
 
     def request(self):
-        if self.action == "get":
+        if self.action == "list":
+            return self.get()
+        elif self.action == "get":
             return self.get()
         elif self.action in ["create", "replace"]:
             return self.post()
         elif self.action == "update":
             return self.patch()
+        elif self.action == "delete":
+            return self.delete()
 
 
 class WSAPIAdapter(object):
 
-    def __init__(self, get_url_args, message):
+    def __init__(self, message, get_url_args):
         self.get_url_args = get_url_args or self._get_url_args
         self.message = message
-        self.action = self.message["action"]
+        self.content = json.loads(message.content["text"])
 
     def _get_url_args(self, message):
+        action = message["action"]
+
+        if action in ["update", "replace"]:
+            url_action = "update"
+        else:
+            url_action = action
+
         url_name = "{entity}-{action}".format(
             entity=message["entity"],
-            action=message["action"],
+            action=url_action,
             )
         url_parameters = {}
         if message["meta"].get("uuid"):
@@ -86,39 +104,48 @@ class WSAPIAdapter(object):
         return url_name, url_parameters
 
     def resolve(self):
-        route_name, url_params = self.get_url_args(self.message)
+        route_name, url_params = self.get_url_args(self.content)
         path = reverse(route_name, kwargs=url_params)
         func, args, kwargs = resolve(path)
         return path, func, args, kwargs
 
     def message_to_request(self):
         path, func, args, kwargs = self.resolve()
-        data = self.message.get("data", {})
-        user = None
-        request = RequestFactory(self.action, path, data, user).request()
+        data = self.content.get("data", {})
+        auth_token = self.message.auth_token
+        request = RequestFactory(
+            self.content["action"], path, data, auth_token
+            ).request()
         response = func(request, *args, **kwargs)
 
         payload = self.process_response(response.data)
 
         return payload
 
+    def get_response_action(self):
+        action = self.content.get("action")
+        if action in ["get", "list", "create", "replace", "update"]:
+            return "store"
+        elif action == "delete":
+            return "delete"
+        else:
+            return None
+
     def process_response(self, data):
-        new_data = data
+        new_data = {
+            "action": self.get_response_action(),
+            "entity": self.content.get("entity")
+        }
+
+        if self.content.get("meta"):
+            new_data["meta"] = self.content["meta"]
+
+        if self.content.get("action") == "create":
+            if not new_data.get("meta"):
+                new_data["meta"] = {}
+            new_data["meta"]["uuid"] = data.get("uuid")
+
+        if data:
+            new_data["data"] = data
 
         return new_data
-
-        # print("URL name", url_name)
-        #
-        # request = AsgiRequest(self.message)
-        # # print(request)
-        # print("Message to process", message.http_session)
-        #
-        # if message['action'] == 'store':
-        #     if message['entity'] == 'job':
-        #         route = 'callsheet.api.update'
-        #
-        #
-        # # we have a route
-        # view = reverse(route, {message['meta']})
-        #
-        # return view(message[data])
