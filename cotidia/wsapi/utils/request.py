@@ -1,8 +1,5 @@
-import json
-
 from io import BytesIO
 
-from django.urls import reverse, resolve
 from django.core.handlers.wsgi import WSGIRequest
 from django.utils.six.moves.urllib.parse import urlencode
 
