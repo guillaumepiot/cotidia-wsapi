@@ -50,10 +50,12 @@ class WSAPIAdapter(object):
 
     def get_response_action(self):
         action = self.content.get("action")
-        if action in ["get", "list", "create", "replace", "update"]:
+        if action in ["get", "list", "create", "replace"]:
             return "store"
+        elif action == "update":
+            return "update"
         elif action == "delete":
-            return "delete"
+            return "remove"
         else:
             return None
 
