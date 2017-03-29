@@ -2,7 +2,7 @@ import json
 
 from django.urls import reverse, resolve
 
-from cotidia.utils.request import RequestFactory
+from cotidia.wsapi.utils.request import RequestFactory
 
 
 class WSAPIAdapter(object):
