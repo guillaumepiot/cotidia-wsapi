@@ -1,32 +1,104 @@
 import json
 
-from django.urls import reverse, resolve
+from django.urls import reverse, resolve, get_resolver
+from rest_framework.renderers import JSONRenderer
 
 from cotidia.wsapi.utils.request import RequestFactory
 
 
 class WSAPIAdapter(object):
 
-    def __init__(self, message, get_url_args):
-        self.get_url_args = get_url_args or self._get_url_args
+    def __init__(
+            self,
+            message,
+            action_map,
+            action_meta_map,
+            namespace_map=None):
         self.message = message
         self.content = json.loads(message.content["text"])
 
-    def _get_url_args(self, message):
-        action = message["action"]
+        # Example action map
+        # action_map = {
+        #         "get": "get",
+        #         "list": "list",
+        #         "create": "create",
+        #         "replace": "update",
+        #         "update": "update",
+        #         "delete": "delete",
+        #     }
+        self.action_map = action_map
 
-        if action in ["update", "replace"]:
-            url_action = "update"
+        # Example action meta map
+        # action_meta_map = {
+        #     "get": [],
+        #     "list": [],
+        #     "create": ["uuid"],
+        #     "replace": ["uuid"],
+        #     "update": ["uuid"],
+        #     "delete": ["uuid"],
+        # }
+        self.action_meta_map = action_meta_map
+
+        # Example namespace map
+        # namespace_map = {
+        #     "modelname": "appname-api",
+        # }
+        self.namespace_map = namespace_map
+
+    def get_kwarg_names_for_url(self, view_name, namespace=None):
+        """Get a route url and kwargs given a namespace and a view name."""
+
+        # Get a resolver from the default urls conf. Eg: 'project.urls'
+        resolver = get_resolver()
+
+        # If we have a namespace, use namespace dict to find its resolver
+        if namespace:
+            sub_resolver = resolver.namespace_dict[namespace][1]
+            resolver_data = sub_resolver.reverse_dict.get(view_name)
         else:
-            url_action = action
+            resolver_data = resolver.reverse_dict[view_name]
 
-        url_name = "{entity}-{action}".format(
-            entity=message["entity"],
-            action=url_action,
+        pattern_list = resolver_data[0]
+
+        '''
+        Need to specify the 1st pattern because url regexes can
+        potentially have multiple kwarg arrangments - this function does
+        not take this possibility into account.
+        '''
+        first_pattern = pattern_list[0]
+
+        '''
+        `first_pattern` is now of the form `(url_string, kwarg_list)` -
+        all we are interested in is the 2nd value.
+        '''
+        return first_pattern[1]
+
+    def get_url_args(self, message):
+        action = message["action"]
+        entity = message["entity"]
+
+        # Build the view name from the entity and the action.
+        # This is a convention.
+        # The action map allows us to map specific action to url names.
+        view_name = "{entity}-{action}".format(
+            entity=entity,
+            action=self.action_map[action],
             )
+
+        if self.namespace_map:
+            namespace = self.namespace_map[entity]
+            url_name = "{}:{}".format(namespace, view_name)
+        else:
+            url_name = view_name
+
+        # Extract the required kwargs for a given route
+        url_kwargs = self.get_kwarg_names_for_url(view_name, namespace)
+
+        # Build the url parameters dictionary using the required kwargs
         url_parameters = {}
-        if message["meta"].get("uuid"):
-            url_parameters["uuid"] = message["meta"]["uuid"]
+        for arg in url_kwargs:
+            if message["meta"].get(arg):
+                url_parameters[arg] = message["meta"][arg]
         return url_name, url_parameters
 
     def resolve(self):
@@ -43,13 +115,20 @@ class WSAPIAdapter(object):
             self.content["action"], path, data, auth_token
             ).request()
         response = func(request, *args, **kwargs)
+        data = None
+        if response.data:
+            data = json.loads(
+                JSONRenderer().render(response.data).decode("utf-8")
+            )
+        return self.process_response(response.status_code, data)
 
-        payload = self.process_response(response.data)
+    def get_response_action(self, status_code):
 
-        return payload
+        if status_code == 400:
+            return "validation"
 
-    def get_response_action(self):
         action = self.content.get("action")
+
         if action in ["get", "list", "create", "replace"]:
             return "store"
         elif action == "update":
@@ -59,21 +138,22 @@ class WSAPIAdapter(object):
         else:
             return None
 
-    def process_response(self, data):
-        new_data = {
-            "action": self.get_response_action(),
-            "entity": self.content.get("entity")
+    def process_response(self, status_code, data):
+        action = self.content.get("action")
+        entity = self.content.get("entity")
+
+        meta = {}
+        for key in self.action_meta_map[action]:
+            if data:
+                meta[key] = data.get(key)
+            elif self.content.get("meta"):
+                meta[key] = self.content.get("meta").get(key)
+
+        payload = {
+            "action": self.get_response_action(status_code),
+            "entity": entity,
+            "meta": meta,
+            "data": data
         }
 
-        if self.content.get("meta"):
-            new_data["meta"] = self.content["meta"]
-
-        if self.content.get("action") == "create":
-            if not new_data.get("meta"):
-                new_data["meta"] = {}
-            new_data["meta"]["uuid"] = data.get("uuid")
-
-        if data:
-            new_data["data"] = data
-
-        return new_data
+        return payload
