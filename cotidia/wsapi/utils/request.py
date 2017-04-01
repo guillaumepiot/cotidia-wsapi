@@ -1,14 +1,14 @@
 from io import BytesIO
 
 from django.core.handlers.wsgi import WSGIRequest
-from django.utils.six.moves.urllib.parse import urlencode
+from rest_framework.renderers import JSONRenderer
 
 
 class RequestFactory(object):
     def __init__(self, action, path, data={}, auth_token=None):
         self.action = action
         self.path = path
-        self.encoded_data = urlencode(data)
+        self.data = JSONRenderer().render(data)
         self.auth_token = auth_token
 
     def build_request(self, environ):
@@ -27,9 +27,9 @@ class RequestFactory(object):
         environ = self.get_base_environ()
         environ.update({
             'REQUEST_METHOD': "GET",
-            'CONTENT_TYPE': 'application/x-www-form-urlencoded',
-            'CONTENT_LENGTH': len(self.encoded_data),
-            'wsgi.input': BytesIO(self.encoded_data.encode())
+            'CONTENT_TYPE': 'application/json',
+            'CONTENT_LENGTH': len(self.data),
+            'wsgi.input': BytesIO(self.data)
             })
         return self.build_request(environ)
 
@@ -37,9 +37,9 @@ class RequestFactory(object):
         environ = self.get_base_environ()
         environ.update({
             'REQUEST_METHOD': "POST",
-            'CONTENT_TYPE': 'application/x-www-form-urlencoded',
-            'CONTENT_LENGTH': len(self.encoded_data),
-            'wsgi.input': BytesIO(self.encoded_data.encode())
+            'CONTENT_TYPE': 'application/json',
+            'CONTENT_LENGTH': len(self.data),
+            'wsgi.input': BytesIO(self.data)
             })
         return self.build_request(environ)
 
@@ -47,9 +47,9 @@ class RequestFactory(object):
         environ = self.get_base_environ()
         environ.update({
             'REQUEST_METHOD': "PATCH",
-            'CONTENT_TYPE': 'application/x-www-form-urlencoded',
-            'CONTENT_LENGTH': len(self.encoded_data),
-            'wsgi.input': BytesIO(self.encoded_data.encode())
+            'CONTENT_TYPE': 'application/json',
+            'CONTENT_LENGTH': len(self.data),
+            'wsgi.input': BytesIO(self.data)
             })
         return self.build_request(environ)
 
