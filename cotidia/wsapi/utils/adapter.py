@@ -13,6 +13,7 @@ class WSAPIAdapter(object):
             message,
             action_map,
             action_meta_map,
+            entity_map,
             namespace_map=None):
         self.message = message
         self.content = json.loads(message.content["text"])
@@ -38,6 +39,12 @@ class WSAPIAdapter(object):
         #     "delete": ["uuid"],
         # }
         self.action_meta_map = action_meta_map
+
+        # Example entity map
+        # namespace_map = {
+        #     "model_name": "model-name",
+        # }
+        self.entity_map = entity_map
 
         # Example namespace map
         # namespace_map = {
@@ -81,7 +88,7 @@ class WSAPIAdapter(object):
         # This is a convention.
         # The action map allows us to map specific action to url names.
         view_name = "{entity}-{action}".format(
-            entity=entity,
+            entity=self.entity_map[entity],
             action=self.action_map[action],
             )
 
