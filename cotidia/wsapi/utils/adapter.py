@@ -138,8 +138,6 @@ class WSAPIAdapter(object):
 
         if action in ["get", "list", "create", "replace"]:
             return "store"
-        elif action == "update":
-            return "update"
         elif action == "delete":
             return "remove"
         else:
@@ -147,6 +145,10 @@ class WSAPIAdapter(object):
 
     def process_response(self, status_code, data):
         action = self.content.get("action")
+
+        if action is None:
+            return None
+
         entity = self.content.get("entity")
 
         meta = {}
