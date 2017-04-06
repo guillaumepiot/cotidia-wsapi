@@ -66,7 +66,7 @@ class RequestFactory(object):
             return self.get()
         elif self.action == "get":
             return self.get()
-        elif self.action in ["create", "replace"]:
+        elif self.action in ["create", "replace", "copy"]:
             return self.post()
         elif self.action == "update":
             return self.patch()

@@ -136,7 +136,7 @@ class WSAPIAdapter(object):
 
         action = self.content.get("action")
 
-        if action in ["get", "list", "create", "replace"]:
+        if action in ["get", "list", "create", "replace", "copy"]:
             return "store"
         elif action == "delete":
             return "remove"
