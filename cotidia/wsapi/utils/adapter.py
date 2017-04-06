@@ -144,7 +144,7 @@ class WSAPIAdapter(object):
             return None
 
     def process_response(self, status_code, data):
-        action = self.content.get("action")
+        action = self.get_response_action(status_code)
 
         if action is None:
             return None
@@ -159,7 +159,7 @@ class WSAPIAdapter(object):
                 meta[key] = self.content.get("meta").get(key)
 
         payload = {
-            "action": self.get_response_action(status_code),
+            "action": action,
             "entity": entity,
             "meta": meta,
             "data": data
