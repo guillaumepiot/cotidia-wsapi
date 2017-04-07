@@ -155,12 +155,18 @@ class WSAPIAdapter(object):
 
         entity = self.content.get("entity")
 
+        original_meta = self.content.get("meta")
         meta = {}
+
+        # Add transaction is if it exists.
+        if original_meta.get("transaction"):
+            meta["transaction"] = original_meta.get("transaction")
+
         for key in self.action_meta_map[request_action]:
             if data.get(key):
                 meta[key] = data.get(key)
-            elif self.content.get("meta"):
-                meta[key] = self.content.get("meta").get(key)
+            elif original_meta.get(key):
+                meta[key] = original_meta.get(key)
 
         payload = {
             "action": response_action,
