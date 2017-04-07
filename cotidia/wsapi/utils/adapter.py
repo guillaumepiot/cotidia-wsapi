@@ -25,6 +25,7 @@ class WSAPIAdapter(object):
         #         "create": "create",
         #         "replace": "update",
         #         "update": "update",
+        #         "copy": "copy",
         #         "delete": "delete",
         #     }
         self.action_map = action_map
@@ -33,9 +34,11 @@ class WSAPIAdapter(object):
         # action_meta_map = {
         #     "get": [],
         #     "list": [],
+        #     "store": [],
         #     "create": ["uuid"],
         #     "replace": ["uuid"],
         #     "update": ["uuid"],
+        #     "copy": ["uuid"],
         #     "delete": ["uuid"],
         # }
         self.action_meta_map = action_meta_map
@@ -144,22 +147,23 @@ class WSAPIAdapter(object):
             return None
 
     def process_response(self, status_code, data):
-        action = self.get_response_action(status_code)
+        request_action = self.content.get("action")
+        response_action = self.get_response_action(status_code)
 
-        if action is None:
+        if response_action is None:
             return None
 
         entity = self.content.get("entity")
 
         meta = {}
-        for key in self.action_meta_map[action]:
+        for key in self.action_meta_map[request_action]:
             if data:
                 meta[key] = data.get(key)
             elif self.content.get("meta"):
                 meta[key] = self.content.get("meta").get(key)
 
         payload = {
-            "action": action,
+            "action": response_action,
             "entity": entity,
             "meta": meta,
             "data": data
