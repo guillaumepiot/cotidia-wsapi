@@ -157,7 +157,7 @@ class WSAPIAdapter(object):
 
         meta = {}
         for key in self.action_meta_map[request_action]:
-            if data:
+            if data.get(key):
                 meta[key] = data.get(key)
             elif self.content.get("meta"):
                 meta[key] = self.content.get("meta").get(key)
