@@ -139,12 +139,10 @@ class WSAPIAdapter(object):
 
         action = self.content.get("action")
 
-        if action in ["get", "list", "create", "replace", "copy"]:
+        if action in ["get", "list"]:
             return "store"
-        elif action == "delete":
-            return "remove"
-        else:
-            return None
+
+        return None
 
     def process_response(self, status_code, data):
         request_action = self.content.get("action")
@@ -163,7 +161,7 @@ class WSAPIAdapter(object):
             meta["transaction"] = original_meta.get("transaction")
 
         for key in self.action_meta_map[request_action]:
-            if data.get(key):
+            if data and data.get(key):
                 meta[key] = data.get(key)
             elif original_meta.get(key):
                 meta[key] = original_meta.get(key)
