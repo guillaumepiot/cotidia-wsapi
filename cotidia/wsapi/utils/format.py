@@ -1,8 +1,10 @@
-def format_message(action, entity, data=None, meta=None):
+def format_message(action, entity=None, data=None, meta=None):
     payload = {
-        "action": action,
-        "entity": entity
+        "action": action
     }
+
+    if data:
+        payload["entity"] = entity
 
     if data:
         payload["data"] = data
