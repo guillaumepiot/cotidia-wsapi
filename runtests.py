@@ -67,33 +67,26 @@ DEFAULT_SETTINGS = dict(
 )
 
 
-def runtests(*test_args):
-    if not settings.configured:
-        settings.configure(**DEFAULT_SETTINGS)
+def runtests():
+    settings.configure(**DEFAULT_SETTINGS)
 
-    # Compatibility with Django 1.7's stricter initialization
-    if hasattr(django, "setup"):
-        django.setup()
-
-    parent = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, parent)
+    # parent = os.path.dirname(os.path.abspath(__file__))
+    # sys.path.insert(0, parent)
 
     try:
-        from django.test.runner import DiscoverRunner
-        runner_class = DiscoverRunner
-        test_args = ["cotidia.wsapi.tests"]
-    except ImportError:
+        # Django <= 1.8
         from django.test.simple import DjangoTestSuiteRunner
-        runner_class = DjangoTestSuiteRunner
-        test_args = ["tests"]
+        test_runner = DjangoTestSuiteRunner(verbosity=1)
+    except ImportError:
+        # Django >= 1.8
+        django.setup()
+        from django.test.runner import DiscoverRunner
+        test_runner = DiscoverRunner(verbosity=1)
 
-    failures = runner_class(
-        verbosity=1,
-        interactive=True,
-        failfast=False
-        ).run_tests(test_args)
-    sys.exit(failures)
+    failures = test_runner.run_tests(['cotidia'])
+    if failures:
+        sys.exit(failures)
 
 
 if __name__ == "__main__":
-    runtests(*sys.argv[1:])
+    runtests()

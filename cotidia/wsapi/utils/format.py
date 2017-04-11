@@ -3,7 +3,7 @@ def format_message(action, entity=None, data=None, meta=None):
         "action": action
     }
 
-    if data:
+    if entity:
         payload["entity"] = entity
 
     if data:

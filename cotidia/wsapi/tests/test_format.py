@@ -12,13 +12,19 @@ class FormatTests(TestCase):
         data = {"name": "test"}
         meta = {"uuid": 1234}
 
+        output = format_message(action)
+        self.assertEqual(
+            output,
+            {
+                "action": "create"
+            })
+
         output = format_message(action, entity)
         self.assertEqual(
             output,
             {
                 "action": "create",
-                "entity": "model",
-                "data": {}
+                "entity": "model"
             })
 
         output = format_message(action, entity, data)
