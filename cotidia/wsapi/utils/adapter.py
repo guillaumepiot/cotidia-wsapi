@@ -70,18 +70,23 @@ class WSAPIAdapter(object):
 
         pattern_list = resolver_data[0]
 
-        '''
+        """
         Need to specify the 1st pattern because url regexes can
-        potentially have multiple kwarg arrangments - this function does
-        not take this possibility into account.
-        '''
-        first_pattern = pattern_list[0]
+        potentially have multiple kwarg arrangments. Return the one with the
+        most kwargs. We will then filter out the one that we have no data for.
+        """
+        longest_pattern = None
+        kw_len = None
+        for p in pattern_list:
+            if kw_len is None or len(p[1]) > kw_len:
+                kw_len = len(p[1])
+                longest_pattern = p
 
-        '''
-        `first_pattern` is now of the form `(url_string, kwarg_list)` -
+        """
+        `longest_pattern` is now of the form `(url_string, kwarg_list)` -
         all we are interested in is the 2nd value.
-        '''
-        return first_pattern[1]
+        """
+        return longest_pattern[1]
 
     def get_url_args(self, message):
         action = message["action"]
